@@ -1,0 +1,15 @@
+# Secrets and private notes
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+private_notes/
+user_notes/
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.epub
