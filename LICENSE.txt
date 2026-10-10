@@ -1,0 +1,29 @@
+PERSONAL USE LICENSE — FREE TUTORIAL AND CONVERSION SCRIPT
+Version 1.0 — 2026-10-10
+
+Copyright (c) 2026 the copyright holder(s) of this repository.
+All rights reserved except as expressly granted below.
+
+1. Scope
+This license applies only to original material and code in this repository for which the repository copyright holder has the right to grant a license. Third-party software, packages, examples, fonts, artwork and other materials remain governed by their own licenses and rights.
+
+2. Permission for personal use
+An individual may download, store, run, and make modifications to their own private copy of the covered conversion script solely to process their personal reading notes for noncommercial purposes. The individual may keep a personal backup copy.
+
+3. Restrictions
+Without prior written permission from the copyright holder, you may NOT:
+(a) sell, rent, sublicense, or commercially exploit covered material;
+(b) redistribute, republish, re-upload, share, or otherwise provide the covered script or a modified copy to others, whether free of charge or for payment;
+(c) incorporate covered code into a service, app, product, or offering supplied to others;
+(d) remove copyright or license notices from covered files.
+
+4. No restriction of overriding rights
+Nothing in this license restricts applicable statutory rights or the rights and permissions granted by the terms of the GitHub platform. In particular, the repository may be viewed and forked insofar as the GitHub Terms of Service permit. This license does not purport to modify a third-party project's license.
+
+5. No warranty
+To the maximum extent permitted by applicable law, covered material is provided "AS IS", without warranty of any kind. The copyright holder is not liable for damages arising from use of the material to the extent permitted by law.
+
+6. Other uses
+For redistribution, educational publication, derivative redistribution, or commercial licensing, obtain express written permission from the copyright holder in advance.
+
+This is a custom source-available license with restrictions; it is not an open-source license.
