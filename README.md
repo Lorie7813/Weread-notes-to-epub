@@ -13,7 +13,7 @@
 ## 下载
 
 - **[转换脚本 readnotes.py](readnotes.py)**：已经发布，可直接下载；建议不要从 PDF 手动复制长代码，避免缩进被 PDF 阅读器破坏。
-- **零基础图文 PDF**：最终版正在做发布前的 Mac 实机核验，待上传后会在此提供下载链接。
+- **[零基础图文 PDF 教程 2.0](https://github.com/Lorie7813/Weread-notes-to-epub/blob/main/%E6%8A%8A%E5%BE%AE%E4%BF%A1%E8%AF%BB%E4%B9%A6%E5%88%92%E7%BA%BF%E7%AC%94%E8%AE%B0%E5%8F%98%E6%88%90%E8%87%AA%E5%B7%B1%E7%9A%84%20EPUB%E7%94%B5%E5%AD%90%E4%B9%A6%202.0.pdf)**：15 页 Mac 图文教程，已上传；可进入页面点击 Download raw file 下载。
 - [个人免费使用许可 LICENSE.txt](LICENSE.txt)。
 
 下载脚本的方法：打开 `readnotes.py` 文件，点击 **Raw / Download raw file**，将文件以 `readnotes.py` 名称保存到 Mac 的**桌面**。
