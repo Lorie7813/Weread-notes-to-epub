@@ -1,37 +1,70 @@
-# 微信读书笔记制作 EPUB｜免费教程
+# 把微信读书划线笔记变成自己的 EPUB 电子书
 
-> **状态：教程仓库初始化中。** 转换脚本、图文 PDF 和示例文件尚未在这里公开，请不要把当前仓库当作已经完成的安装包。
+**读书成册 · Mac 零基础免费教程及个人转换脚本**
 
-本教程面向零基础 Mac 用户：通过 **Obsidian + 第三方 Weread 插件**同步自己的微信读书划线和想法，再将 Markdown 笔记转换为 EPUB 电子书，方便自己保存、阅读。
+本项目适合想保存自己阅读划线和想法的微信读书用户：先通过 Obsidian 的第三方 Weread 插件把笔记同步为 Markdown 文件，再使用转换脚本批量生成 EPUB 电子书（含彩色 PNG 封面）。
+
+**这是免费教程和脚本，不是开发中的独立桌面 App；本项目不会直接连接微信读书。**
 
 ## 使用流程
 
-`微信读书 → Obsidian + Weread 插件 → Markdown 笔记 → 转换脚本 → EPUB`
+`微信读书 → Obsidian + Weread 插件 → .md 笔记 → readnotes.py + Pandoc → EPUB`
 
-## 需要准备什么
+## 下载
 
-1. [Obsidian](https://obsidian.md/)：本地笔记软件。
-2. [obsidian-weread-plugin](https://github.com/zhaohongxuan/obsidian-weread-plugin)：由第三方开发的微信读书同步插件；在 Obsidian 的插件管理中安装和配置。
-3. [Pandoc](https://pandoc.org/)：文档格式转换工具。
-4. Python：运行本项目自有的转换程序。具体安装命令、文件保存方法和排错方式见即将提供的图文教程。
+- **[转换脚本 readnotes.py](readnotes.py)**：已经发布，可直接下载；建议不要从 PDF 手动复制长代码，避免缩进被 PDF 阅读器破坏。
+- **零基础图文 PDF**：最终版正在做发布前的 Mac 实机核验，待上传后会在此提供下载链接。
+- [个人免费使用许可 LICENSE.txt](LICENSE.txt)。
 
-## 教程与下载
+下载脚本的方法：打开 `readnotes.py` 文件，点击 **Raw / Download raw file**，将文件以 `readnotes.py` 名称保存到 Mac 的**桌面**。
 
-- **零基础图文 PDF**：待发布并完成 Mac 实机验证。
-- **转换脚本与示例**：待审查隐私、许可证及依赖后上传。
-- 发布后本页将添加一步一步的操作说明与下载位置。
+## 你需要准备的工具
 
-## 使用须知
+1. [Obsidian](https://obsidian.md/)：个人 Markdown 笔记软件。
+2. [Obsidian Weread 插件](https://github.com/zhaohongxuan/obsidian-weread-plugin)：第三方同步插件，在 Obsidian 中启用并登录自己的微信读书。
+3. [Pandoc](https://pandoc.org/installing.html)：文档/EPUB 格式转换程序。
+4. [Python 3](https://www.python.org/downloads/macos/) 和 Pillow：运行转换程序及生成笔记封面。
 
-- 本项目是独立的学习与个人笔记整理工具，**不是**微信读书、Obsidian 或 Weread 插件的官方项目。
-- 不要向 GitHub 提交 API Key、Cookie、真实私人笔记或未经许可的书籍全文。
-- 请遵守相关服务条款与版权规则；仅处理你有权使用的笔记和内容。
-- 若插件、接口或软件更新，教程中的步骤可能需要调整。
+## Mac 快速使用
 
-## 版权与许可
+先按插件说明将自己的微信读书划线同步到 Obsidian，确认指定文件夹里有 `.md` 笔记。
 
-Copyright © 2026 读书成册项目作者。保留权利。
+在 Mac 终端依次运行以下命令。前两项用于核对安装，接下来两项只需在首次使用时运行：
 
-本仓库原创教程与原创转换程序计划仅向个人提供**非商业性、非再分发授权**：允许下载并用于个人笔记转换；未经作者许可，不得重新上传、分发、销售或整合为商业产品。具体范围与限制请阅读 [LICENSE.txt](LICENSE.txt)。
+```bash
+pandoc --version
+python3 --version
+python3 -m venv "$HOME/readnotes-venv"
+"$HOME/readnotes-venv/bin/python" -m pip install Pillow
+```
 
-**这不是 OSI 认可的开源许可证。** GitHub 公开仓库的平台功能（包括依法和依平台条款允许的查看与 Fork）仍适用。本许可只针对作者拥有权利的原创内容；Obsidian、Pandoc、第三方 Weread 插件及其他依赖各自遵循其原许可证。
+确保 `readnotes.py` 已经保存在 Mac 桌面，然后运行：
+
+```bash
+"$HOME/readnotes-venv/bin/python" "$HOME/Desktop/readnotes.py"
+```
+
+出现选择文件夹窗口后，选中存放微信读书 Markdown 笔记的文件夹。生成结果保存在 **桌面 → 读书成册 EPUB**。
+
+- 每份 `书名.md` 会生成 `书名｜笔记.epub`；例如 `012-书名.md` 会得到 `012-书名｜笔记.epub`。
+- 当原 Markdown 文件修改时间不晚于现有 EPUB 时，程序会跳过转换；它不会自动删除历史 EPUB。
+- 附带彩色 PNG 文字封面；文件名开头的编号在封面中单独显示。
+- 如果 `pandoc --version` 或 `python3 --version` 报错，请先完成安装，不要直接运行转换脚本。
+
+> 已使用虚构 Markdown 示例完成基本的 Python 语法、EPUB 包结构和封面元数据测试。**正式公开宣传前仍需要在真实 Mac/Obsidian 环境完整走一遍图文教程**；不同软件版本的界面可能变化。
+
+## 常见问题
+
+- **提示找不到 Pillow**：请重新执行上面的 `pip install Pillow` 命令。
+- **提示找不到 readnotes.py**：确认它在 Mac 桌面，扩展名是 `.py`，不是 `.py.txt`。
+- **EPUB 只有标题**：先用 Obsidian 打开源 Markdown，检查里面是否实际有划线内容。
+- **没有弹出文件夹窗口**：脚本目前面向 macOS；你也可以手动传入源文件夹路径作为第一个参数。
+- **微信读书同步失败**：请查看原 Weread 插件的项目文档；这个转换脚本不会替代插件的同步功能。
+
+## 隐私与版权
+
+- 不要公开微信读书 API Key、Cookie、真实私人笔记或未经许可的原书全文。
+- 本项目并非微信读书、Obsidian、Pandoc 或 Weread 插件的官方产品。第三方依赖分别遵循其服务条款与许可证；无需 Fork 原 Weread 插件。
+- 本仓库原创转换代码与原创教程**仅授权个人非商业使用**，不授权未经许可的代码重新分发、销售或商业集成，详见 [LICENSE.txt](LICENSE.txt)。这不是标准开源许可证；GitHub 平台条款允许的查看与 Fork 另行适用。
+
+「读书成册」独立 Mac 桌面应用在另外的**私有仓库**开发，本免费工具与正式 App 分开维护。
