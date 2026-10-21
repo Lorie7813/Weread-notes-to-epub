@@ -1,5 +1,7 @@
 # 把微信读书划线笔记变成自己的 EPUB 电子书
 
+**语言 / Language:** [简体中文](README.md) | [English](README_EN.md)
+
 **读书成册 · Mac 零基础免费教程及个人转换脚本**
 
 本项目适合想保存自己阅读划线和想法的微信读书用户：先通过 Obsidian 的第三方 Weread 插件把笔记同步为 Markdown 文件，再使用转换脚本批量生成 EPUB 电子书（含彩色 PNG 封面）。
