@@ -1,0 +1,150 @@
+name: One-time verified EPUB tutorial release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-once.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'Lorie7813/Weread-notes-to-epub'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PDF validation dependency
+        run: python -m pip install 'PyMuPDF==1.26.7'
+      - name: Sanitize original tutorial PDF and verify
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, hashlib, re
+          files=list(Path('.').glob('*.pdf'))
+          assert len(files)==1, 'Expected exactly one tutorial PDF'
+          src=files[0]
+          blob=src.read_bytes()
+          git_sha=hashlib.sha1(f'blob {len(blob)}'.encode()+bytes([0])+blob).hexdigest()
+          assert git_sha=='fba38791f725f403a74e32e9fec84285ae315aa1', 'Unexpected PDF revision; fail closed'
+          pdf=fitz.open(src)
+          assert len(pdf)==15, 'Unexpected tutorial page count'
+          p=pdf[5]
+          for r in [fitz.Rect(50,344,298,443), fitz.Rect(50,477,392,747)]:
+              p.add_redact_annot(r,fill=(1,1,1))
+          p.apply_redactions(images=2,graphics=1,text=0)
+          def fake_panel(rect,title,lines):
+              p.draw_rect(rect,color=(0.80,0.85,0.86),fill=(0.97,0.98,0.98),width=0.7,overlay=True)
+              p.insert_text((rect.x0+13,rect.y0+23),title,fontsize=11,fontname='china-s',color=(0.20,0.30,0.38),overlay=True)
+              for n,line in enumerate(lines):
+                  p.insert_text((rect.x0+14,rect.y0+48+n*24),line,fontsize=9,fontname='china-s',color=(0.27,0.30,0.34),overlay=True)
+          fake_panel(fitz.Rect(52,348,297,438),'同步状态示意（虚构数据）',['同步完成','请检查笔记文件是否生成'])
+          fake_panel(fitz.Rect(52,480,389,740),'笔记示例（虚构）',['示例书名','第一章','这是用于演示的占位划线。','这里可以展示自己的阅读想法。','请勿公开真实读书笔记或登录凭据。'])
+          for i in range(pdf.embfile_count()-1,-1,-1):
+              pdf.embfile_del(i)
+          pdf.set_metadata({key:'' for key in ['title','author','subject','keywords','creator','producer','creationDate','modDate']})
+          out=src.with_suffix('.sanitized.pdf')
+          pdf.save(out,garbage=4,deflate=True,clean=True)
+          pdf.close()
+          clean=fitz.open(out)
+          assert len(clean)==15 and clean.embfile_count()==0, 'PDF safety check failed'
+          assert len(clean[5].get_images(full=True))==1, 'Real notes screenshots were not fully removed'
+          assert clean.metadata.get('author','')=='' and clean.metadata.get('creator','')==''
+          text='\n'.join(p.get_text() for p in clean)
+          for pat in [r'/Users/[^\s]+',r'(?i)-----BEGIN PRIVATE KEY-----',r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b']:
+              assert not re.search(pat,text), 'Sensitive PDF text pattern'
+          clean.close()
+          out.replace(src)
+          print('Sanitized PDF:',src,'bytes:',src.stat().st_size)
+          PY
+      - name: Commit sanitized PDF to main
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- '*.pdf'
+          git diff --cached --quiet && { echo 'Expected PDF changes missing'; exit 1; }
+          git commit -m 'privacy: replace personal reading screenshots with synthetic examples'
+          git push origin HEAD:main
+      - name: Build and verify curated ZIP
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib, re, subprocess, zipfile, fitz
+          tracked=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          tracked=[x for x in tracked if x]
+          expected={'.gitignore','README.md','README_EN.md','readnotes.py','LICENSE.txt','.github/workflows/release-once.yml'}
+          pdfs=[x for x in tracked if x.endswith('.pdf')]
+          assert len(pdfs)==1, 'Exactly one PDF expected'
+          assert set(tracked)==expected|set(pdfs), f'Unexpected tracked file(s): {set(tracked)-expected-set(pdfs)}'
+          files=['README.md','README_EN.md','readnotes.py','LICENSE.txt']+pdfs
+          name='weread-notes-to-epub-v1.0.0.zip'
+          with zipfile.ZipFile(name,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
+              for path in files:z.write(path)
+          forbidden=[
+              re.compile(r'(?i)-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'),
+              re.compile(r'(?i)wr_skey\s*[:=]\s*[^\s]{12,}'),
+              re.compile(r'(?i)wr_sid\s*[:=]\s*[^\s]{12,}'),
+              re.compile(r'(?i)bearer\s+[a-z0-9._-]{24,}'),
+              re.compile(r'/Users/[^\s]+'),
+              re.compile(r'\b[A-Za-z0-9._%+-]+@(?!users\.noreply\.github\.com)[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
+          ]
+          with zipfile.ZipFile(name) as z:
+              assert set(z.namelist())==set(files),'ZIP allowlist mismatch'
+              for n in z.namelist():
+                  b=z.read(n)
+                  if n.endswith('.pdf'):
+                      pdf=fitz.open(stream=b,filetype='pdf')
+                      assert pdf.embfile_count()==0 and len(pdf[5].get_images(full=True))==1
+                      text='\n'.join(p.get_text() for p in pdf)
+                  else:text=b.decode('utf-8')
+                  for pattern in forbidden:
+                      assert not pattern.search(text),f'Forbidden pattern in {n}: {pattern.pattern}'
+          print('ZIP validated:',name,'entries:',files)
+          PY
+      - name: Create draft release, verify GitHub source ZIP, publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/release-notes.md <<'NOTES'
+          First public release of the personal WeRead-to-EPUB conversion workflow for macOS.
+
+          - Sync personal WeRead highlights and notes through the third-party Obsidian Weread Plugin.
+          - Convert Markdown files to EPUB 3 in batches with readnotes.py and Pandoc.
+          - Generate simple colored PNG covers; skip unchanged Markdown notes.
+          - Includes Chinese and English instructions and a privacy-sanitized illustrated PDF guide.
+
+          Requirements: macOS, Obsidian + Weread Plugin, Pandoc, Python 3, Pillow.
+          This script does not connect to WeRead directly and is not an official WeRead product.
+
+          License: personal noncommercial use only. This is source-available, NOT an OSI open-source license; see LICENSE.txt.
+          NOTES
+          gh release create v1.0.0 --draft --target "$(git rev-parse HEAD)" --title 'v1.0.0 — WeRead Notes to EPUB (macOS)' --notes-file /tmp/release-notes.md weread-notes-to-epub-v1.0.0.zip
+          curl --fail --location --silent --show-error --retry 3 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' 'https://api.github.com/repos/Lorie7813/Weread-notes-to-epub/zipball/v1.0.0' -o /tmp/official-source.zip
+          python - <<'PY'
+          import zipfile,fitz,subprocess,hashlib,re
+          with zipfile.ZipFile('/tmp/official-source.zip') as z:
+              names=z.namelist()
+              files=[x for x in names if not x.endswith('/')]
+              base={x.split('/',1)[-1] for x in files}
+              expected={'.gitignore','LICENSE.txt','README.md','README_EN.md','readnotes.py','.github/workflows/release-once.yml'}
+              pdfs=[x for x in base if x.endswith('.pdf')]
+              assert len(pdfs)==1
+              assert base==expected|set(pdfs),f'Unexpected GitHub source ZIP content: {base}'
+              filename=next(x for x in files if x.endswith('.pdf'))
+              data=z.read(filename)
+              pdf=fitz.open(stream=data,filetype='pdf')
+              assert len(pdf)==15 and pdf.embfile_count()==0 and len(pdf[5].get_images(full=True))==1
+              local=open(pdfs[0],'rb').read()
+              assert hashlib.sha256(data).digest()==hashlib.sha256(local).digest(),'Mismatched PDF in source ZIP'
+          print('GitHub-generated source ZIP validated')
+          PY
+          gh release edit v1.0.0 --draft=false
+          gh release view v1.0.0 --json tagName,isDraft,url,assets
