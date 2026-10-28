@@ -1,0 +1,83 @@
+name: Finalize privacy-verified v1.0.0 release
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-finalize.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.repository == 'Lorie7813/Weread-notes-to-epub'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'PyMuPDF==1.26.7'
+      - name: Verify sanitized PDF and exact release tree
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess,pathlib,fitz,re,hashlib
+          expected={'.gitignore','LICENSE.txt','README.md','README_EN.md','readnotes.py','.github/workflows/release-once.yml','.github/workflows/release-finalize.yml'}
+          files=subprocess.check_output(['git','ls-files','-z']).decode().strip('\0').split('\0')
+          pdfs=[f for f in files if f.endswith('.pdf')]
+          assert len(pdfs)==1 and set(files)==expected|set(pdfs),f'Unexpected release tree files: {files}'
+          data=pathlib.Path(pdfs[0]).read_bytes()
+          sha=hashlib.sha1(f'blob {len(data)}'.encode()+bytes([0])+data).hexdigest()
+          assert sha=='7fe296105f06af2a7eccf683ffb19387d43847d3','Unexpected PDF blob hash'
+          pdf=fitz.open(stream=data,filetype='pdf')
+          assert len(pdf)==15 and pdf.embfile_count()==0 and len(pdf[5].get_images(full=True))==1
+          assert pdf.metadata.get('creator','')=='' and pdf.metadata.get('author','')==''
+          for pattern in [r'/Users/[^\s]+',r'(?i)-----BEGIN PRIVATE KEY-----',r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b']:
+              for n in pdf:
+                  assert re.search(pattern,n.get_text()) is None
+          print('Release tree validated:',len(files),'files')
+          PY
+      - name: Create immutable release tag and verify BOTH ZIP downloads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag v1.0.0
+          git push origin refs/tags/v1.0.0
+          curl --fail --location --silent --show-error --retry 3 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' 'https://api.github.com/repos/Lorie7813/Weread-notes-to-epub/zipball/v1.0.0' -o /tmp/official-source.zip
+          mkdir -p /tmp/release-assets
+          gh release download v1.0.0 --pattern 'weread-notes-to-epub-v1.0.0.zip' --dir /tmp/release-assets
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile,fitz,hashlib,re
+          srczip='/tmp/official-source.zip'
+          assetzip='/tmp/release-assets/weread-notes-to-epub-v1.0.0.zip'
+          expected={'.gitignore','LICENSE.txt','README.md','README_EN.md','readnotes.py','.github/workflows/release-once.yml','.github/workflows/release-finalize.yml'}
+          pdfpath=next(x for x in Path('.').iterdir() if x.suffix=='.pdf')
+          clean=pdfpath.read_bytes()
+          def verify(zippath,packaged):
+              with zipfile.ZipFile(zippath) as z:
+                  names=[x for x in z.namelist() if not x.endswith('/')]
+                  basename={x.split('/',1)[-1] for x in names} if not packaged else set(names)
+                  want=({'README.md','README_EN.md','LICENSE.txt','readnotes.py',pdfpath.name} if packaged else expected|{pdfpath.name})
+                  assert basename==want,(zippath,basename,want)
+                  pdf_entry=next(x for x in names if x.endswith('.pdf'))
+                  data=z.read(pdf_entry)
+                  assert hashlib.sha256(data).digest()==hashlib.sha256(clean).digest(), 'Mismatched or unreviewed PDF'
+                  doc=fitz.open(stream=data,filetype='pdf')
+                  assert doc.embfile_count()==0 and len(doc[5].get_images(full=True))==1
+                  for member in names:
+                      if member.endswith('.pdf'):continue
+                      t=z.read(member).decode('utf-8')
+                      assert not re.search(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',t)
+                      assert not re.search(r'/Users/[^\s]+',t)
+                      assert not re.search(r'(?i)wr_skey\s*[:=]\s*\S{12,}',t)
+              print('Verified ZIP:',zippath)
+          verify(srczip,False)
+          verify(assetzip,True)
+          PY
+          gh release edit v1.0.0 --draft=false
+          gh release view v1.0.0 --json tagName,isDraft,url,assets
